@@ -3,12 +3,23 @@
  * Copyright (c) 2021-present NAVER Corp.
  * MIT license
  */
-import {
-  AfterViewChecked, AfterViewInit, Component, ElementRef,
-  EventEmitter, Input, OnChanges, OnDestroy, Output, ViewChild,
-  PLATFORM_ID, Inject,
+ import {
+  AfterViewChecked,
+  AfterViewInit,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnDestroy,
+  Output,
+  PLATFORM_ID,
+  Inject,
+  NgZone
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformServer } from '@angular/common';
+import { fromEvent, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import {
   getRenderingItems,
@@ -27,8 +38,8 @@ import {
 } from '@egjs/infinitegrid';
 import { NgxInfiniteGridInterface } from './ngx-infinitegrid.interface';
 import { NgxInfiniteGridProps } from './types';
+import Grid, { GridOptions } from '@egjs/grid';
 
-// @dynamic
 @Component({
   selector: 'ngx-infinite-grid, [NgxInfiniteGrid]',
   template: '<slot></slot>',
@@ -41,7 +52,7 @@ export class NgxInfiniteGridComponent
   implements Required<InfiniteGridOptions>,
   NgxInfiniteGridProps,
   AfterViewInit, AfterViewChecked, OnChanges, OnDestroy {
-  public static GridClass: InfiniteGridFunction;
+  public static GridClass: InfiniteGridFunction | null = null;
   @Input() gridConstructor!: NgxInfiniteGridProps['gridConstructor'];
   @Input() renderer!: NgxInfiniteGridProps['renderer'];
   @Input() container!: NgxInfiniteGridProps['container'];
@@ -68,7 +79,9 @@ export class NgxInfiniteGridComponent
   @Input() outlineSize!: NgxInfiniteGridProps['outlineSize'];
   @Input() useRoundedSize!: NgxInfiniteGridProps['useRoundedSize'];
   @Input() useResizeObserver!: NgxInfiniteGridProps['useResizeObserver'];
-
+  @Input() observeChildren!: NgxInfiniteGridProps['observeChildren'];
+  @Input() scrollContainer!: NgxInfiniteGridProps['scrollContainer'];
+  @Input() appliedItemChecker!: NgxInfiniteGridProps['appliedItemChecker'];
 
   @Input() usePlaceholder!: NgxInfiniteGridProps['useFirstRender'];
   @Input() useLoading!: NgxInfiniteGridProps['useLoading'];
@@ -77,68 +90,88 @@ export class NgxInfiniteGridComponent
   @Input() items: NgxInfiniteGridProps['items'] = [];
   @Input() trackBy: NgxInfiniteGridProps['trackBy'] = ((_, item) => item.key);
   @Input() groupBy: NgxInfiniteGridProps['groupBy'] = ((_, item) => item.groupKey);
+  @Input() infoBy: NgxInfiniteGridProps['infoBy'] = () => ({});
   @Output() renderComplete!: EventEmitter<OnRenderComplete>;
   @Output() contentError!: EventEmitter<OnContentError>;
   @Output() changeScroll!: EventEmitter<OnChangeScroll>;
   @Output() requestAppend!: EventEmitter<OnRequestAppend>;
   @Output() requestPrepend!: EventEmitter<OnRequestPrepend>;
   public visibleItems: InfiniteGridItem[] = [];
-  @ViewChild('wrapperRef', { static: false }) _wrapperRef!: ElementRef;
-  @ViewChild('containerRef', { static: false }) _containerRef!: ElementRef;
+
   private _renderer = new Renderer();
   private _isChange = false;
 
-  constructor(protected elementRef: ElementRef, @Inject(PLATFORM_ID) private _platform: Object) {
+  private _destroy$ = new Subject<void>();
+
+  constructor(
+    public elementRef: ElementRef<HTMLElement>,
+    @Inject(PLATFORM_ID) private _platformId: string,
+    private _ngZone: NgZone
+  ) {
     super();
+
     for (const name in INFINITEGRID_EVENTS) {
       const eventName = (INFINITEGRID_EVENTS as any)[name];
       (this as any)[eventName] = new EventEmitter();
     }
   }
 
-
   ngOnInit() {
     this._updateVisibleChildren();
   }
+
   ngOnChanges() {
     this._isChange = true;
     this._updateVisibleChildren();
   }
+
   ngAfterViewInit(): void {
-    if (!isPlatformBrowser(this._platform)) {
+    if (isPlatformServer(this._platformId)) {
       return;
     }
+
     const GridClass = (this.constructor as typeof NgxInfiniteGridComponent).GridClass;
-    const defaultOptions = GridClass.defaultOptions;
+    const defaultOptions = GridClass!.defaultOptions;
     const options: Partial<InfiniteGridOptions> = {};
-    const containerElement = this._containerRef?.nativeElement;
 
     for (const name in defaultOptions) {
       if (name in this && typeof (this as any)[name] !== "undefined") {
         (options as any)[name] = (this as any)[name];
       }
     }
-    if (containerElement) {
-      options.container = containerElement;
-    }
-    options.renderer = this._renderer;
-    const wrapper = this._wrapperRef! || this.elementRef;
 
-    const grid = new GridClass(wrapper.nativeElement, options);
+    options.renderer = this._renderer;
+
+    // The `InfiniteGrid` set ups `scroll` and `resize` events through `ScrollManager`
+    // and `ResizeWatcher`. These events force Angular to run change detection whenever
+    // dispatched; this happens too often.
+    const grid = this._ngZone.runOutsideAngular(
+      () => new GridClass!(this.elementRef.nativeElement, options)
+    );
 
     for (const name in INFINITEGRID_EVENTS) {
       const eventName = (INFINITEGRID_EVENTS as any)[name];
 
-      grid.on(eventName, (e: any) => {
-        (this as any)[eventName].emit(e as any);
-      });
+      fromEvent(grid, eventName)
+        .pipe(takeUntil(this._destroy$))
+        .subscribe((event) => {
+          const emitter = (this as any)[eventName];
+          if (emitter && emitter.observers.length > 0) {
+            this._ngZone.run(() => emitter.emit(event));
+          }
+        });
     }
 
     this.vanillaGrid = grid;
-    this._renderer.on("requestUpdate", () => {
-      this._isChange = true;
-      this._updateVisibleChildren();
-    });
+
+    fromEvent(this._renderer, 'requestUpdate')
+      .pipe(takeUntil(this._destroy$))
+      .subscribe(() => {
+        this._ngZone.run(() => {
+          this._isChange = true;
+          this._updateVisibleChildren();
+        });
+      });
 
     mountRenderingItems(this._getItemInfos(), {
       grid,
@@ -150,6 +183,7 @@ export class NgxInfiniteGridComponent
     });
     this._renderer.updated();
   }
+
   ngAfterViewChecked() {
     if (!this._isChange || !this.vanillaGrid) {
       return;
@@ -161,7 +195,7 @@ export class NgxInfiniteGridComponent
     }
     this._isChange = false;
     const GridClass = (this.constructor as typeof NgxInfiniteGridComponent).GridClass;
-    const propertyTypes = GridClass.propertyTypes;
+    const propertyTypes = GridClass!.propertyTypes;
     const grid = this.vanillaGrid;
 
     for (const name in propertyTypes) {
@@ -172,7 +206,9 @@ export class NgxInfiniteGridComponent
 
     this._renderer.updated(children);
   }
+
   ngOnDestroy() {
+    this._destroy$.next();
     this.vanillaGrid?.destroy();
   }
 
@@ -180,15 +216,25 @@ export class NgxInfiniteGridComponent
     const items = this.items;
     const trackBy = this.trackBy;
     const groupBy = this.groupBy;
+    const infoBy = this.infoBy;
 
     return items.map((item, i) => {
+      const {
+        data,
+        ...rest
+      } = infoBy(i, item);
       return {
         groupKey: groupBy(i, item),
         key: trackBy(i, item),
-        data: item,
+        ...rest,
+        data: {
+          ...data,
+          ...item,
+        },
       };
     });
   }
+
   private _updateVisibleChildren() {
     this.visibleItems = getRenderingItems(this._getItemInfos(), {
       grid: this.vanillaGrid,
