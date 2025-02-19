@@ -8,8 +8,8 @@
   },
   "source": {
     "include": [
-      "src",
       "README.md",
+      "packages/infinitegrid/src",
       "node_modules/@egjs/grid/src",
       "node_modules/@egjs/component/src/Component.ts",
       "node_modules/@egjs/component/src/ComponentEvent.ts"
@@ -37,7 +37,7 @@
     },
     "applicationName": "eg.InfiniteGrid",
     "disqus": "egjs",
-    "googleAnalytics": "UA-70842526-18",
+    "googleAnalytics": "G-LWLTCXMENE",
     "openGraph": {
       "title": "",
       "type": "website",

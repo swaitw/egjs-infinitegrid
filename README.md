@@ -7,7 +7,7 @@
   <a href="https://www.npmjs.com/package/@egjs/infinitegrid" target="_blank"><img src="https://img.shields.io/npm/v/@egjs/infinitegrid.svg?style=flat-square&color=007acc&label=version&logo=NPM" alt="version" /></a>
   <a href="https://www.npmjs.com/package/@egjs/infinitegrid" target="_blank"><img alt="npm weekly downloads" src="https://img.shields.io/npm/dw/@egjs/infinitegrid?logo=npm&style=flat-square&color=007acc" /></a>
   <a href="https://www.npmjs.com/package/@egjs/infinitegrid" target="_blank"><img alt="npm bundle size (scoped)" src="https://img.shields.io/bundlephobia/minzip/@egjs/infinitegrid.svg?style=flat-square&label=%F0%9F%92%BE%20gzipped&color=007acc" /></a>
-  <a href="https://travis-ci.org/naver/egjs-infinitegrid" target="_blank"><img alt="Travis (.org)" src="https://img.shields.io/travis/naver/egjs-infinitegrid.svg?style=flat-square&label=build&logo=travis%20ci" /></a>
+  <a href="https://github.com/naver/egjs-infinitegrid/actions" target="_blank"><img alt="Github actions" src="https://img.shields.io/github/actions/workflow/status/naver/egjs-infinitegrid/run-e2e.yml?branch=master&style=flat-square" /></a>&nbsp;
   <a href="https://coveralls.io/github/naver/egjs-infinitegrid?branch=master&style=flat-square" target="_blank"><img alt="Coveralls github" src="https://img.shields.io/coveralls/github/naver/egjs-infinitegrid.svg?style=flat-square&label=%E2%9C%85%20coverage" /></a>
     <a href="https://github.com/naver/egjs-infinitegrid/blob/master/LICENSE" target="_blank"><img alt="GitHub" src="https://img.shields.io/github/license/naver/egjs-infinitegrid.svg?style=flat-square&label=%F0%9F%93%9C%20license&color=08CE5D" /></a>
 </p>
@@ -47,7 +47,7 @@
 
 ## 📖 Articles
 * [InfiniteGrid 4 Release!!](https://medium.com/naver-fe-platform/infinitegrid-4-release-f4e2d05b0292)
-* []()
+
 ## ⚙️ Installation
 #### npm
 ```bash
@@ -158,9 +158,44 @@ const grid = new MasonryInfiniteGrid(container, {
 grid.renderItems();
 ```
 
+
+## Pre-guess size for performance or invisible items.
+### What if all items were the same size?
+If you use the `isEqualSize` option, all items are considered to be the same size.
+Each resize only calculates the size of one item.
+Add `data-grid-not-equal-size="true"` attribute if there is an exceptional item whose size needs to be calculated while using isEqualSize.
+```html
+<div class="item item1"></div>
+<div class="item item1"></div>
+<div class="item item1"></div>
+<!--item2 is a different size than item1.-->
+<div class="item item2" data-grid-not-equal-size="true"></div>
+```
+
+### What if a size group exists?
+
+`isEqualSize` assumes all items are equal. But if there are more than two size-groups, use `data-grid-size-group`.
+
+
+```html
+<!--item1 has the same size.-->
+<div class="item item1" data-grid-size-group="1"></div>
+<div class="item item1" data-grid-size-group="1"></div>
+<!--item2 has the same size.-->
+<div class="item item2" data-grid-size-group="2"></div>
+<div class="item item2" data-grid-size-group="2"></div>
+```
+
+
+### What if all items don't change size?
+If all items do not have a constant size, use the `isConstantSize` option. Resizing doesn't calculate the item's size.
+If you want to recalculate, use `.updateItems(items, { useOrgResize: true })` method or `.renderItems({ useOrgResize: true })` method.
+
+
 ## 📦 Packages
 |Package|Version|Description|
 |:-----:|:-----:|:-----:|
+|[**@egjs/infinitegrid**](https://github.com/naver/egjs-infinitegrid/blob/master/packages/infinitegrid/README.md)|<a href="https://www.npmjs.com/package/@egjs/infinitegrid" target="_blank"><img src="https://img.shields.io/npm/v/@egjs/infinitegrid.svg?style=flat-square&color=dddd31&label=%F0%9F%94%96" alt="version" /></a>|Vanilla Module of InfiniteGrid|
 |[**@egjs/ngx-infinitegrid**](https://github.com/naver/egjs-infinitegrid/blob/master/packages/ngx-infinitegrid/README.md)|<a href="https://www.npmjs.com/package/@egjs/ngx-infinitegrid" target="_blank"><img src="https://img.shields.io/npm/v/@egjs/ngx-infinitegrid.svg?style=flat-square&color=dd0031&label=%F0%9F%94%96" alt="version" /></a>|<img width="15" src="https://naver.github.io/egjs-infinitegrid/img/icons/angular.svg" valign="middle" alt="Angular" /> [Angular](https://angular.io/) port of @egjs/infinitegrid|
 |[**@egjs/react-infinitegrid**](https://github.com/naver/egjs-infinitegrid/blob/master/packages/react-infinitegrid/README.md)|<a href="https://www.npmjs.com/package/@egjs/react-infinitegrid" target="_blank"><img src="https://img.shields.io/npm/v/@egjs/react-infinitegrid.svg?style=flat-square&color=00d8ff&label=%F0%9F%94%96" alt="version" /></a>|<img width="15" src="https://naver.github.io/egjs-infinitegrid/img/icons/react.svg" valign="middle" alt="React" /> [React](https://reactjs.org/) port of @egjs/infinitegrid|
 |[**@egjs/vue-infinitegrid**](https://github.com/naver/egjs-infinitegrid/blob/master/packages/vue-infinitegrid/README.md)|<a href="https://www.npmjs.com/package/@egjs/vue-infinitegrid" target="_blank"><img src="https://img.shields.io/npm/v/@egjs/vue-infinitegrid.svg?style=flat-square&color=42b883&label=%F0%9F%94%96" alt="version" /></a>|<img width="15" src="https://naver.github.io/egjs-infinitegrid/img/icons/vue.svg" valign="middle" alt="Vue.js" /> [Vue.js@2](https://vuejs.org/v2/guide/index.html) port of @egjs/infinitegrid|

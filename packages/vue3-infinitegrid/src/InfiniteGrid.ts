@@ -12,17 +12,15 @@ import VanillaInfiniteGrid, {
   Renderer,
   getRenderingItems,
   mountRenderingItems,
+  InfiniteGridMethods,
 } from "@egjs/infinitegrid";
 import { VUE_INFINITEGRID_PROPS } from "./consts";
-import { FrameInfiniteGrid } from "./grids/FrameInfiniteGrid";
-import { JustifiedInfiniteGrid } from "./grids/JustifiedInfiniteGrid";
-import { MasonryInfiniteGrid } from "./grids/MasonryInfiniteGrid";
-import { PackingInfiniteGrid } from "./grids/PackingInfiniteGrid";
-import { VueInfiniteGridInterface, VueInnerInfiniteInterface } from "./types";
-import { h } from "vue";
+import { VueInfiniteGridEvents, VueInnerInfiniteInterface } from "./types";
+import { defineComponent, h } from "vue";
 import { decamelize } from "./utils";
+import InfiniteGrid from "@egjs/infinitegrid";
 
-export function makeInfiniteGrid<T extends InfiniteGridFunction>(tagName: string, GridClass: T): VueInfiniteGridInterface<T> {
+export function makeInfiniteGrid<Options extends InfiniteGridOptions>(tagName: string, GridClass: InfiniteGridFunction) {
   const {
     propertyTypes,
     defaultOptions,
@@ -57,6 +55,7 @@ export function makeInfiniteGrid<T extends InfiniteGridFunction>(tagName: string
 
       return props ? props[`${attributePrefix}groupkey`] : undefined;
     });
+    const infoBy = props.infoBy || (() => ({}));
 
     let children: any[] = [];
 
@@ -70,7 +69,7 @@ export function makeInfiniteGrid<T extends InfiniteGridFunction>(tagName: string
       // const KEYED_FRAGMENT = 1 << 7;
       // const UNKEYED_FRAGMENT = 1 << 8;
       children = children.reduce((prev, cur) => {
-        if ((cur.patchFlag > 0 && cur.patchFlag & ((1 << 6) + (1 << 7) + (1 << 8))) > 0) {
+        if ((cur.patchFlag && cur.patchFlag & ((1 << 6) + (1 << 7) + (1 << 8))) > 0) {
           return [...prev, ...cur.children];
         } else if (cur) {
           return [...prev, cur];
@@ -80,10 +79,17 @@ export function makeInfiniteGrid<T extends InfiniteGridFunction>(tagName: string
     }
 
     return children.map((child, i) => {
+      const {
+        data,
+        ...rest
+      } = infoBy(child, i) || {};
+
       return {
         groupKey: groupBy(child, i),
         key: itemBy(child, i),
+        ...rest,
         data: {
+          ...data,
           vnode: child,
         },
       };
@@ -131,11 +137,21 @@ export function makeInfiniteGrid<T extends InfiniteGridFunction>(tagName: string
     return visibleChildren;
   }
 
-  return {
+  return defineComponent<
+    Options,
+    {},
+    {},
+    {},
+    InfiniteGridMethods<InfiniteGrid>,
+    {},
+    {},
+    VueInfiniteGridEvents
+  >({
     name: tagName,
     props: [...VUE_INFINITEGRID_PROPS, ...Object.keys(defaultOptions)],
     watch,
     methods,
+    emits: Object.keys(INFINITEGRID_EVENTS).map(name => (INFINITEGRID_EVENTS as any)[name]),
     render(this: VueInnerInfiniteInterface) {
       const props = this.$props;
       const tag = props.tag || "div";
@@ -200,15 +216,8 @@ export function makeInfiniteGrid<T extends InfiniteGridFunction>(tagName: string
     updated(this: VueInnerInfiniteInterface) {
       this.$_renderer.updated();
     },
-    beforeUnmount(this: any) {
+    beforeUnmount(this: VueInnerInfiniteInterface) {
       this.$_grid.destroy();
     },
-  } as any;
-}
-
-export function install(app: { component: (name: string, module: any) => any }): void {
-  app.component("masonry-infinite-grid", MasonryInfiniteGrid);
-  app.component("justified-infinite-grid", JustifiedInfiniteGrid);
-  app.component("frame-infinite-grid", FrameInfiniteGrid);
-  app.component("packing-infinite-grid", PackingInfiniteGrid);
+  } as any);
 }

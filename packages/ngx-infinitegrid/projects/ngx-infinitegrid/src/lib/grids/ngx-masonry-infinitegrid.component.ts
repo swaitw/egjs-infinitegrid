@@ -12,7 +12,6 @@ import { TEMPLATE } from '../consts';
 @Component({
   selector: 'ngx-masonry-infinite-grid, [NgxMasonryInfiniteGrid]',
   template: TEMPLATE,
-  styles: [],
 })
 export class NgxMasonryInfiniteGridComponent extends NgxInfiniteGridComponent
   implements Required<MasonryInfiniteGridOptions> {
@@ -22,4 +21,6 @@ export class NgxMasonryInfiniteGridComponent extends NgxInfiniteGridComponent
   @Input() columnSizeRatio!: Required<MasonryInfiniteGridOptions>['columnSizeRatio'];
   @Input() align!: Required<MasonryInfiniteGridOptions>['align'];
   @Input() columnCalculationThreshold!: Required<MasonryInfiniteGridOptions>['columnCalculationThreshold'];
+  @Input() maxStretchColumnSize!: Required<MasonryInfiniteGridOptions>['maxStretchColumnSize'];
+  @Input() contentAlign!: Required<MasonryInfiniteGridOptions>['contentAlign'];
 }
